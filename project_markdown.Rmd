@@ -1,0 +1,82 @@
+---
+title: "Machine Learning Project"
+author: "Manuel Velasco"
+date: "21 de diciembre de 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+load("~/MachineLearningProject/myData.RData")
+```
+
+
+The process of generating the model to predict the unknown test set is described in this document.
+
+The following packages have been used:
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(randomForest)
+```
+
+The seed is set to a fixed value:
+```{r, echo=TRUE}
+set.seed(32335)
+```
+
+
+First, the data sets are loaded and stored as data frames:
+
+```{r load training and test sets, echo=TRUE}
+training_set <- read.csv("~/MachineLearningProject/data/pml-training.csv", stringsAsFactors = FALSE)
+testing_set <- read.csv("~/MachineLearningProject/data/pml-testing.csv", stringsAsFactors = FALSE)
+```
+
+Once loaded, it is clear that the training data set contains a lot of unnecessary variables. Therefore, only the variables that are also present in the testing data set are considered to construct the model. This reduces the number of variables from 160 to 60.
+
+```{r Remove unnecessary variables:, echo=TRUE}
+testing_set <- testing_set[, colSums(is.na(testing_set)) != nrow(testing_set)]
+training_set <- training_set[, colSums(is.na(training_set)) != nrow(training_set)]
+training_set_skp <- training_set[, names(training_set) %in% names(testing_set)]
+training_set_skp$classe <- training_set$classe
+```
+
+To construnct the model, the training data set is partitioned in a training and a testing set:
+```{r Partition of the training data set:, echo=TRUE}
+inTrain <- createDataPartition(y=training_set_skp$classe, p=0.7, list=FALSE)
+training <- training_set_skp[inTrain, ]
+testing <- training_set_skp[-inTrain, ]
+```
+
+And the first variables, which contain information about the user name or time information, are also removed because we are only interested in the information provided by the sensors:
+```{r Remove more variables:, echo=TRUE}
+training <- training[, 8:60]
+testing <- testing[, 8:60]
+```
+
+Several methods have been considered for the construction of the model. The random forest method, although has the higher computational cost, provides the highest accuracy. Therefore, that method is used to construct the model.
+```{r, eval=FALSE}
+modFit_rf <- train(classe ~ ., data=training, method="rf")
+```
+
+Once the model has been created, the testing set is used to measure the accuracy of the model:
+```{r Measure accuracy:, echo=TRUE, eval=FALSE}
+pred_rf <- predict(modFit_rf, testing)
+```
+Examining the confusion matrix, it can be seen that the accuracy is of 99% approximately:
+```{r}
+confusionMatrix(pred_rf, testing$classe)$overall[1]
+```
+
+
+Finally, the type of exercises of the unknown test set can be predicted using the generated model:
+```{r, echo=TRUE}
+pred_rf_unknown <- predict(modFit_rf, testing_set)
+print(pred_rf_unknown)
+```
+
